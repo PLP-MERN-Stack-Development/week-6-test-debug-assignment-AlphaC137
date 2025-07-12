@@ -94,6 +94,9 @@ describe('Auth Middleware', () => {
   describe('Invalid Token Scenarios', () => {
     it('should reject request with no authorization header', async () => {
       req.header.mockReturnValue(undefined);
+      
+      const { extractTokenFromHeader } = require('../../src/utils/auth');
+      extractTokenFromHeader.mockReturnValue(null);
 
       await auth(req, res, next);
 
