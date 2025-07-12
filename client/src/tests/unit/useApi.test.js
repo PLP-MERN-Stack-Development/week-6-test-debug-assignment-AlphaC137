@@ -9,6 +9,15 @@ global.fetch = jest.fn();
 describe('useApi Hook', () => {
   beforeEach(() => {
     fetch.mockClear();
+    // Mock AbortController
+    global.AbortController = jest.fn(() => ({
+      abort: jest.fn(),
+      signal: { aborted: false },
+    }));
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should initialize with default state', () => {
@@ -39,6 +48,7 @@ describe('useApi Hook', () => {
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: expect.any(Object),
     });
   });
 
@@ -69,6 +79,7 @@ describe('useApi Hook', () => {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer token123',
       },
+      signal: expect.any(Object),
     });
   });
 
@@ -93,7 +104,12 @@ describe('useApi Hook', () => {
         ok: true,
         json: async () => ({ data: 'test' }),
       });
-      await promise;
+      // Wait for the promise to resolve
+      try {
+        await promise;
+      } catch (error) {
+        // Handle any potential errors
+      }
     });
 
     expect(result.current.loading).toBe(false);
@@ -111,7 +127,11 @@ describe('useApi Hook', () => {
     const { result } = renderHook(() => useApi());
 
     await act(async () => {
-      await result.current.request('/api/not-found');
+      try {
+        await result.current.request('/api/not-found');
+      } catch (error) {
+        // Expected error, do nothing
+      }
     });
 
     expect(result.current.data).toBeNull();
@@ -130,7 +150,11 @@ describe('useApi Hook', () => {
     const { result } = renderHook(() => useApi());
 
     await act(async () => {
-      await result.current.request('/api/test');
+      try {
+        await result.current.request('/api/test');
+      } catch (error) {
+        // Expected error, do nothing
+      }
     });
 
     expect(result.current.data).toBeNull();
@@ -201,7 +225,11 @@ describe('useApi Hook', () => {
     const { result } = renderHook(() => useApi());
 
     await act(async () => {
-      await result.current.request('/api/test');
+      try {
+        await result.current.request('/api/test');
+      } catch (error) {
+        // Expected error, do nothing
+      }
     });
 
     expect(result.current.data).toBeNull();
@@ -234,7 +262,7 @@ describe('useApi Hook', () => {
       signal: { aborted: false },
     };
 
-    // Mock AbortController
+    // Override the global mock for this specific test
     global.AbortController = jest.fn(() => mockAbortController);
 
     let resolveFirst;
@@ -242,7 +270,13 @@ describe('useApi Hook', () => {
       resolveFirst = resolve;
     });
 
-    fetch.mockReturnValueOnce(firstPromise);
+    // Mock the first and second fetch calls
+    fetch
+      .mockReturnValueOnce(firstPromise)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: 'test2' }),
+      });
 
     const { result } = renderHook(() => useApi());
 
@@ -252,10 +286,23 @@ describe('useApi Hook', () => {
     });
 
     // Start second request before first completes
-    act(() => {
-      result.current.request('/api/test2');
+    await act(async () => {
+      await result.current.request('/api/test2');
     });
 
     expect(abortSpy).toHaveBeenCalled();
+
+    // Clean up the promise to prevent unhandled rejection
+    await act(async () => {
+      resolveFirst({
+        ok: true,
+        json: async () => ({ data: 'test1' }),
+      });
+      try {
+        await firstPromise;
+      } catch (error) {
+        // Handle potential abort error
+      }
+    });
   });
 });
