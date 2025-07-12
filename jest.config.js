@@ -30,8 +30,16 @@ module.exports = {
       },
       setupFilesAfterEnv: ['<rootDir>/client/src/tests/setup.js'],
       transform: {
-        '^.+\\.(js|jsx)$': 'babel-jest',
+        '^.+\\.(js|jsx)$': ['babel-jest', {
+          presets: [
+            ['@babel/preset-env', { targets: { node: 'current' } }],
+            ['@babel/preset-react', { runtime: 'automatic' }]
+          ]
+        }],
       },
+      transformIgnorePatterns: [
+        'node_modules/(?!(.*\\.mjs$))'
+      ],
       coverageDirectory: '<rootDir>/coverage/client',
       collectCoverageFrom: [
         'client/src/**/*.{js,jsx}',
