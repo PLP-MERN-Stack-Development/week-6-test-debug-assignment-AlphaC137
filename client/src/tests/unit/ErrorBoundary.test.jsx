@@ -89,7 +89,7 @@ describe('ErrorBoundary Component', () => {
     const customFallback = (error, errorInfo, reset) => (
       <div>
         <h1>Custom Error UI</h1>
-        <p>Error: {error.message}</p>
+        <p>Error: {error && error.message ? error.message : 'Unknown error'}</p>
         <button onClick={reset}>Reset</button>
       </div>
     );
@@ -119,7 +119,7 @@ describe('ErrorBoundary Component', () => {
 
     // Re-render with no error to simulate successful retry
     rerender(
-      <ErrorBoundary>
+      <ErrorBoundary key="retry">
         <ThrowError shouldThrow={false} />
       </ErrorBoundary>
     );
