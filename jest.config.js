@@ -22,7 +22,7 @@ module.exports = {
     {
       displayName: 'client',
       testEnvironment: 'jsdom',
-      testMatch: ['<rootDir>/client/src/**/*.test.{js,jsx}'],
+      testMatch: ['<rootDir>/client/src/tests/**/*.test.{js,jsx}'],
       moduleFileExtensions: ['js', 'jsx', 'json'],
       moduleNameMapper: {
         '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
