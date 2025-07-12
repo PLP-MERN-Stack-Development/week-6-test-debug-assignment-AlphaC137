@@ -1,4 +1,4 @@
-// posts.test.js - Integration tests for posts API endpoints
+// Tests for posts API endpoints
 
 const request = require('supertest');
 const mongoose = require('mongoose');
