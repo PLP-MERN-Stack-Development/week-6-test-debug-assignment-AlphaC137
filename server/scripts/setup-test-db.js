@@ -7,7 +7,7 @@ const User = require('../src/models/User');
 const Post = require('../src/models/Post');
 require('dotenv').config();
 
-const TEST_DB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/mern-testing-test';
+const TEST_DB_URI = process.env.TEST_MONGODB_URI || 'mongodb://admin:adminpass@localhost:27017/test?authSource=admin';
 
 async function setupTestDatabase() {
   try {
