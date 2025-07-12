@@ -305,3 +305,5 @@ bundlestats.html
 
 # Sentry config
 .sentryclirc
+COMPLETION_INSTRUCTIONS.md
+results
