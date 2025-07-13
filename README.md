@@ -85,4 +85,53 @@ Your work will be automatically submitted when you push to your GitHub Classroom
 - [React Testing Library Documentation](https://testing-library.com/docs/react-testing-library/intro/)
 - [Supertest Documentation](https://github.com/visionmedia/supertest)
 - [Cypress Documentation](https://docs.cypress.io/)
-- [MongoDB Testing Best Practices](https://www.mongodb.com/blog/post/mongodb-testing-best-practices) 
+- [MongoDB Testing Best Practices](https://www.mongodb.com/blog/post/mongodb-testing-best-practices)
+
+## Bug Tracker Features
+- Report new bugs
+- View all reported bugs
+- Update bug statuses (open, in-progress, resolved)
+- Delete bugs
+
+## Installation & Running
+
+1. Install dependencies:
+   ```bash
+   cd client && npm install
+   cd ../server && npm install
+   ```
+2. Start backend:
+   ```bash
+   npm start
+   ```
+3. Start frontend:
+   ```bash
+   npm start
+   ```
+
+## Running Tests
+
+- Frontend unit tests:
+  ```bash
+  cd client && npm test
+  ```
+- Backend unit/integration tests:
+  ```bash
+  cd server && npm test
+  ```
+
+## Debugging Techniques
+
+## Test Coverage
+
+## Test Results
+
+Below are the test result screenshots for both the client and server:
+
+### Client Test Result
+![Client Test Result](client/npm%20result.png)
+
+### Server Test Result
+![Server Test Result](server/npm%20result.png)
+
+---
