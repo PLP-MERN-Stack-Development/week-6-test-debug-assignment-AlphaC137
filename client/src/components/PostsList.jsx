@@ -8,19 +8,34 @@ import './PostsList.css';
 
 const PostsList = ({ 
   endpoint = '/api/posts',
-  limit,
+  limit = 10,
   onPostClick,
   showActions = true,
   emptyMessage = 'No posts found',
   className = ''
 }) => {
-  const { data: posts, loading, error, request } = useApi();
+  const { data: response, loading, error, request } = useApi();
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState('');
+
+  // Extract posts and pagination from response
+  const posts = response?.posts || response || [];
+  const pagination = response?.pagination || { current: 1, pages: 1, total: 0, hasNext: false, hasPrev: false };
 
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const url = limit ? `${endpoint}?limit=${limit}` : endpoint;
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: limit.toString(),
+        });
+        
+        if (selectedCategory) {
+          params.append('category', selectedCategory);
+        }
+        
+        const url = `${endpoint}?${params.toString()}`;
         await request(url);
       } catch (err) {
         console.error('Error fetching posts:', err);
@@ -28,16 +43,53 @@ const PostsList = ({
     };
 
     fetchPosts();
-  }, [endpoint, limit, request]);
+  }, [endpoint, limit, currentPage, selectedCategory, request]);
 
-  const filteredPosts = posts && Array.isArray(posts) ? posts.filter(post =>
-    post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    post.content.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  const filteredPosts = posts && Array.isArray(posts) ? posts.filter(post => {
+    const title = post.title || '';
+    const content = post.content || post.excerpt || '';
+    return title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           content.toLowerCase().includes(searchTerm.toLowerCase());
+  }) : [];
 
   const handleRefresh = () => {
-    const url = limit ? `${endpoint}?limit=${limit}` : endpoint;
+    const params = new URLSearchParams({
+      page: currentPage.toString(),
+      limit: limit.toString(),
+    });
+    
+    if (selectedCategory) {
+      params.append('category', selectedCategory);
+    }
+    
+    const url = `${endpoint}?${params.toString()}`;
     request(url);
+  };
+
+  const handleSearch = () => {
+    // Search functionality
+    const params = new URLSearchParams({
+      page: '1',
+      limit: limit.toString(),
+      search: searchTerm,
+    });
+    
+    if (selectedCategory) {
+      params.append('category', selectedCategory);
+    }
+    
+    const url = `${endpoint}?${params.toString()}`;
+    request(url);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (category) => {
+    setSelectedCategory(category);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   if (loading) {
@@ -54,14 +106,14 @@ const PostsList = ({
     return (
       <div className={`posts-list error ${className}`}>
         <div className="error-message" role="alert" data-testid="posts-error">
-          <h3>Error loading posts</h3>
+          <h3>Failed to load posts</h3>
           <p>{error.message}</p>
           <button 
             type="button" 
             onClick={handleRefresh}
             className="btn retry-btn"
           >
-            Try Again
+            Retry
           </button>
         </div>
       </div>
@@ -73,6 +125,17 @@ const PostsList = ({
       <div className="posts-list-header">
         <h2>Posts</h2>
         <div className="posts-actions">
+          <select
+            value={selectedCategory}
+            onChange={(e) => handleCategoryChange(e.target.value)}
+            className="category-filter"
+            data-testid="category-filter"
+          >
+            <option value="">All Categories</option>
+            <option value="technology">Technology</option>
+            <option value="design">Design</option>
+            <option value="business">Business</option>
+          </select>
           <input
             type="text"
             placeholder="Search posts..."
@@ -81,6 +144,14 @@ const PostsList = ({
             className="search-input"
             data-testid="search-input"
           />
+          <button 
+            type="button" 
+            onClick={handleSearch}
+            className="btn search-btn"
+            data-testid="search-button"
+          >
+            Search
+          </button>
           <button 
             type="button" 
             onClick={handleRefresh}
@@ -106,6 +177,35 @@ const PostsList = ({
               showActions={showActions}
             />
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {pagination.pages > 1 && (
+        <div className="pagination" data-testid="pagination">
+          <button
+            type="button"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={!pagination.hasPrev}
+            className="btn pagination-btn"
+            data-testid="pagination-prev"
+          >
+            Previous
+          </button>
+          
+          <span className="pagination-info" data-testid="pagination-info">
+            Page {pagination.current} of {pagination.pages}
+          </span>
+          
+          <button
+            type="button"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={!pagination.hasNext}
+            className="btn pagination-btn"
+            data-testid="pagination-next"
+          >
+            Next
+          </button>
         </div>
       )}
     </div>

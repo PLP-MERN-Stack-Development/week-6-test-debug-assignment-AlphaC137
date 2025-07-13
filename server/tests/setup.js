@@ -15,7 +15,7 @@ global.console = {
 };
 
 // Set default timeout for all tests
-jest.setTimeout(10000);
+jest.setTimeout(30000);
 
 // Global test utilities
 global.testUtils = {

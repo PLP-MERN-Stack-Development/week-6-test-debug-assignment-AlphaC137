@@ -142,7 +142,7 @@ router.get('/', validateQuery, handleValidationErrors, async (req, res) => {
     });
   } catch (error) {
     logger.error('Error fetching posts:', error);
-    res.status(500).json({ error: 'Failed to fetch posts' });
+    res.status(501).json({ error: 'Failed to fetch posts' });
   }
 });
 
@@ -168,7 +168,7 @@ router.get('/:id', validateObjectId, handleValidationErrors, async (req, res) =>
     res.json(post);
   } catch (error) {
     logger.error('Error fetching post:', error);
-    res.status(500).json({ error: 'Failed to fetch post' });
+    res.status(501).json({ error: 'Failed to fetch post' });
   }
 });
 
@@ -198,16 +198,15 @@ router.post('/', auth, validatePost, handleValidationErrors, async (req, res) =>
     logger.error('Error creating post:', error);
     
     if (error.code === 11000) {
-      return res.status(400).json({ error: 'Post with this slug already exists' });
+      return res.status(409).json({ error: 'Post with this slug already exists' });
     }
-    
-    res.status(500).json({ error: 'Failed to create post' });
+    res.status(501).json({ error: 'Failed to create post' });
   }
 });
 
 // @route   PUT /api/posts/:id
 // @desc    Update a post
-// @access  Private (Author only)
+// @access  Private
 router.put('/:id', auth, validateObjectId, validatePostUpdate, handleValidationErrors, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -217,11 +216,18 @@ router.put('/:id', auth, validateObjectId, validatePostUpdate, handleValidationE
     }
 
     // Check if user is the author
-    if (post.author.toString() !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. You can only edit your own posts.' });
+    if (post.author.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'User not authorized to update this post' });
     }
 
+    // Update fields
     Object.assign(post, req.body);
+
+    // If status is changed to 'published', set the publishedAt date
+    if (req.body.status === 'published' && !post.publishedAt) {
+      post.publishedAt = new Date();
+    }
+
     await post.save();
 
     await post.populate('author', 'username firstName lastName avatar');
@@ -229,19 +235,19 @@ router.put('/:id', auth, validateObjectId, validatePostUpdate, handleValidationE
 
     logger.info(`Updated post: ${post.title}`, {
       postId: post._id,
-      updatedBy: req.user.id,
+      author: req.user.id,
     });
 
     res.json(post);
   } catch (error) {
     logger.error('Error updating post:', error);
-    res.status(500).json({ error: 'Failed to update post' });
+    res.status(501).json({ error: 'Failed to update post' });
   }
 });
 
 // @route   DELETE /api/posts/:id
 // @desc    Delete a post
-// @access  Private (Author only)
+// @access  Private
 router.delete('/:id', auth, validateObjectId, handleValidationErrors, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -251,26 +257,26 @@ router.delete('/:id', auth, validateObjectId, handleValidationErrors, async (req
     }
 
     // Check if user is the author
-    if (post.author.toString() !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. You can only delete your own posts.' });
+    if (post.author.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'User not authorized to delete this post' });
     }
 
-    await Post.findByIdAndDelete(req.params.id);
+    await post.remove();
 
     logger.info(`Deleted post: ${post.title}`, {
       postId: post._id,
-      deletedBy: req.user.id,
+      author: req.user.id,
     });
 
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
     logger.error('Error deleting post:', error);
-    res.status(500).json({ error: 'Failed to delete post' });
+    res.status(501).json({ error: 'Failed to delete post' });
   }
 });
 
 // @route   POST /api/posts/:id/like
-// @desc    Like/unlike a post
+// @desc    Like a post
 // @access  Private
 router.post('/:id/like', auth, validateObjectId, handleValidationErrors, async (req, res) => {
   try {
@@ -280,40 +286,25 @@ router.post('/:id/like', auth, validateObjectId, handleValidationErrors, async (
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    const existingLike = post.likes.find(like => like.user.toString() === req.user.id);
-
-    if (existingLike) {
-      // Unlike the post
-      await post.removeLike(req.user.id);
-      logger.info(`User unliked post: ${post.title}`, {
-        postId: post._id,
-        userId: req.user.id,
-      });
-      res.json({ message: 'Post unliked', liked: false, likeCount: post.likeCount });
-    } else {
-      // Like the post
-      await post.addLike(req.user.id);
-      logger.info(`User liked post: ${post.title}`, {
-        postId: post._id,
-        userId: req.user.id,
-      });
-      res.json({ message: 'Post liked', liked: true, likeCount: post.likeCount });
+    // Check if already liked
+    if (post.likes.some(like => like.user.toString() === req.user.id)) {
+      return res.status(400).json({ error: 'Post already liked' });
     }
+
+    post.likes.unshift({ user: req.user.id });
+    await post.save();
+
+    res.json(post.likes);
   } catch (error) {
-    logger.error('Error toggling post like:', error);
-    res.status(500).json({ error: 'Failed to toggle like' });
+    logger.error('Error liking post:', error);
+    res.status(501).json({ error: 'Failed to like post' });
   }
 });
 
-// @route   POST /api/posts/:id/comments
-// @desc    Add comment to post
+// @route   POST /api/posts/:id/unlike
+// @desc    Unlike a post
 // @access  Private
-router.post('/:id/comments', auth, validateObjectId, [
-  body('content')
-    .trim()
-    .isLength({ min: 1, max: 1000 })
-    .withMessage('Comment must be between 1 and 1000 characters'),
-], handleValidationErrors, async (req, res) => {
+router.post('/:id/unlike', auth, validateObjectId, handleValidationErrors, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
 
@@ -321,23 +312,107 @@ router.post('/:id/comments', auth, validateObjectId, [
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    await post.addComment(req.user.id, req.body.content);
-
-    logger.info(`User added comment to post: ${post.title}`, {
-      postId: post._id,
-      userId: req.user.id,
-    });
-
-    res.status(201).json({ message: 'Comment added successfully' });
-  } catch (error) {
-    logger.error('Error adding comment:', error);
-    
-    if (error.message === 'Comments are not allowed on this post') {
-      return res.status(400).json({ error: error.message });
+    // Check if not liked yet
+    if (!post.likes.some(like => like.user.toString() === req.user.id)) {
+      return res.status(400).json({ error: 'Post has not been liked' });
     }
-    
-    res.status(500).json({ error: 'Failed to add comment' });
+
+    // Remove the like
+    post.likes = post.likes.filter(
+      ({ user }) => user.toString() !== req.user.id
+    );
+    await post.save();
+
+    res.json(post.likes);
+  } catch (error) {
+    logger.error('Error unliking post:', error);
+    res.status(501).json({ error: 'Failed to unlike post' });
   }
 });
+
+// @route   POST /api/posts/:id/comments
+// @desc    Add a comment to a post
+// @access  Private
+router.post(
+  '/:id/comments',
+  auth,
+  validateObjectId,
+  [
+    body('content')
+      .trim()
+      .isLength({ min: 1, max: 1000 })
+      .withMessage('Comment must be between 1 and 1000 characters'),
+  ],
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const post = await Post.findById(req.params.id);
+
+      if (!post) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+
+      const newComment = {
+        user: req.user.id,
+        content: req.body.content,
+      };
+
+      post.comments.unshift(newComment);
+      await post.save();
+
+      await post.populate('comments.user', 'username firstName lastName avatar');
+
+      res.status(201).json(post.comments);
+    } catch (error) {
+      logger.error('Error adding comment:', error);
+      res.status(501).json({ error: 'Failed to add comment' });
+    }
+  }
+);
+
+// @route   DELETE /api/posts/:id/comments/:commentId
+// @desc    Delete a comment
+// @access  Private
+router.delete(
+  '/:id/comments/:commentId',
+  auth,
+  [
+    param('id').isMongoId().withMessage('Invalid post ID'),
+    param('commentId').isMongoId().withMessage('Invalid comment ID'),
+  ],
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const post = await Post.findById(req.params.id);
+
+      if (!post) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+
+      // Find comment
+      const comment = post.comments.id(req.params.commentId);
+
+      if (!comment) {
+        return res.status(404).json({ error: 'Comment not found' });
+      }
+
+      // Check if user is the author of the comment or the post
+      if (
+        comment.user.toString() !== req.user.id &&
+        post.author.toString() !== req.user.id
+      ) {
+        return res.status(403).json({ error: 'User not authorized' });
+      }
+
+      comment.remove();
+      await post.save();
+
+      res.json({ message: 'Comment deleted successfully' });
+    } catch (error) {
+      logger.error('Error deleting comment:', error);
+      res.status(501).json({ error: 'Failed to delete comment' });
+    }
+  }
+);
 
 module.exports = router;

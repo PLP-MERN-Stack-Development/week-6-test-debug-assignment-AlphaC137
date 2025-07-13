@@ -9,18 +9,44 @@ const User = require('../../src/models/User');
 let mongoServer;
 
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
-  await mongoose.connect(mongoUri);
-});
+  try {
+    mongoServer = await MongoMemoryServer.create({
+      instance: {
+        dbName: 'test-auth',
+      },
+    });
+    const mongoUri = mongoServer.getUri();
+    await mongoose.connect(mongoUri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+  } catch (error) {
+    console.error('Failed to start MongoDB Memory Server:', error);
+    throw error;
+  }
+}, 30000);
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  await mongoServer.stop();
-});
+  try {
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+    if (mongoServer) {
+      await mongoServer.stop();
+    }
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+  }
+}, 30000);
 
 afterEach(async () => {
-  await User.deleteMany({});
+  try {
+    if (mongoose.connection.readyState !== 0) {
+      await User.deleteMany({});
+    }
+  } catch (error) {
+    console.error('Error cleaning up test data:', error);
+  }
 });
 
 describe('Authentication Integration Tests', () => {

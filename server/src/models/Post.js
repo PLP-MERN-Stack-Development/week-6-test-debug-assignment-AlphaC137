@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const slug = require('slug');
 
 const postSchema = new mongoose.Schema({
   title: {
@@ -127,11 +128,8 @@ postSchema.virtual('commentCount').get(function() {
 
 // Generate slug from title before saving
 postSchema.pre('save', function(next) {
-  if (this.isModified('title') && !this.slug) {
-    this.slug = this.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
+  if (this.isModified('title')) {
+    this.slug = slug(this.title, { lower: true });
   }
   
   // Generate excerpt if not provided
