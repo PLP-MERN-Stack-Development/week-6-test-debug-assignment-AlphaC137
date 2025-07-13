@@ -16,6 +16,16 @@ module.exports = {
         '!server/src/config/**',
         '!**/node_modules/**',
       ],
+      transform: {
+        '^.+\\.js$': ['babel-jest', {
+          presets: [
+            ['@babel/preset-env', { targets: { node: 'current' } }]
+          ]
+        }],
+      },
+      transformIgnorePatterns: [
+        'node_modules/(?!slug)'
+      ],
     },
     
     // Client-side tests configuration
@@ -48,11 +58,9 @@ module.exports = {
       ],
     },
   ],
-  
-  // Global configuration
-  verbose: true,
-  collectCoverage: true,
-  coverageReporters: ['text', 'lcov', 'clover', 'html'],
+  testTimeout: 30000, // Global timeout for all tests
+  // Global coverage configuration
+  coverageReporters: ['json', 'lcov', 'text', 'clover'],
   coverageThreshold: {
     global: {
       statements: 70,
@@ -61,5 +69,4 @@ module.exports = {
       lines: 70,
     },
   },
-  testTimeout: 10000,
-}; 
+};
